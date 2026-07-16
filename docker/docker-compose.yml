@@ -1,0 +1,66 @@
+version: '3.8'
+services:
+  # ─── DATABASE ────────────────────────────────────────
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    container_name: pattern_zero_db
+    environment:
+      POSTGRES_DB: pattern_zero
+      POSTGRES_USER: cartographer
+      POSTGRES_PASSWORD: convergence2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    restart: unless-stopped
+  # ─── CACHE ────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: pattern_zero_cache
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+  # ─── DATABASE UI ──────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pattern_zero_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: aura@patternzero.io
+      PGADMIN_DEFAULT_PASSWORD: convergence2026
+    ports:
+      - "5050:80"
+    depends_on:
+      - timescaledb
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    restart: unless-stopped
+  # ─── PIPELINE ORCHESTRATOR ─────────────────────────────
+  airflow:
+    image: apache/airflow:2.8.0
+    container_name: pattern_zero_airflow
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://cartographer:convergence2026@timescaledb/pattern_zero
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__FERNET_KEY: 'kXiK6p6COGyLywjzOZLIX6b1E_7A01L205mCYGjGA_I='
+      AIRFLOW__WEBSERVER__WORKERS: '2'
+      AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: '300'
+      DB_HOST: timescaledb
+      DB_PORT: 5432
+      DB_NAME: pattern_zero
+      DB_USER: cartographer
+      DB_PASSWORD: convergence2026
+      FRED_API_KEY: ${FRED_API_KEY}
+      _PIP_ADDITIONAL_REQUIREMENTS: "yfinance pandas sqlalchemy>=1.4,<2.0 python-dotenv fredapi multitasking==0.0.11"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - timescaledb
+    volumes:
+      - ../data_lake:/opt/airflow/data_lake
+      - ../data_lake/pipelines/airflow_dags:/opt/airflow/dags
+    command: standalone
+    restart: unless-stopped
+volumes:
+  timescale_data:
+  pgadmin_data:

@@ -1,0 +1,20 @@
+# Environment secrets — NEVER commit these
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Docker
+docker/pgadmin_data/
+docker/timescale_data/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
