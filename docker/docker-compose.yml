@@ -61,6 +61,15 @@ services:
       - ../data_lake/pipelines/airflow_dags:/opt/airflow/dags
     command: standalone
     restart: unless-stopped
+  
+  api:
+    build: ../api
+    container_name: pattern_zero_api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - timescaledb
+    restart: unless-stopped
 volumes:
   timescale_data:
   pgadmin_data:
