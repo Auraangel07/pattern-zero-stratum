@@ -1,110 +1,76 @@
 # Pattern Zero — STRATUM
 
-**Module I of Pattern Zero: automated financial data infrastructure**
+**Module I of Pattern Zero** — an automated, multi-asset-class financial data infrastructure. STRATUM ingests equities, ETFs, cryptocurrency, and macroeconomic indicators on independent schedules, stores them in a time-series-optimized Postgres database, and orchestrates the entire pipeline with Apache Airflow — fully containerized, self-healing, and audit-logged.
 
-> "Complexity is not chaos. It is unread data."
-
-![Python](https://img.shields.io/badge/Python-3.14-blue)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/TimescaleDB-PostgreSQL%2014-336791?logo=postgresql&logoColor=white)
-![Airflow](https://img.shields.io/badge/Apache%20Airflow-2.8.0-017CEE?logo=apacheairflow&logoColor=white)
-![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+> *"Complexity is not chaos. It is unread data."*
 
 ---
 
-## What This Is
+## What it does
 
-STRATUM is a fully automated, self-healing financial data pipeline that
-collects stock, crypto, and macroeconomic data on a recurring schedule
-and stores it in a time-series-optimized database — with zero manual
-intervention required after setup.
+STRATUM is the data foundation layer for Pattern Zero, a broader financial AI research ecosystem. It answers one question reliably, every hour: **is the data fresh, correct, and where it needs to be?**
 
-This is Project 01 of Pattern Zero's Module I. Two more projects
-(a live observatory dashboard and an alternative-data pipeline) are
-planned to complete the module.
+- 📈 **Equities & ETFs** — US and Indian markets (AAPL, MSFT, GOOGL, RELIANCE.NS, TCS.NS, and more), plus SPY/QQQ/GLD, refreshed twice daily
+- 🪙 **Cryptocurrency** — BTC, ETH, SOL, BNB, XRP, refreshed hourly (crypto never sleeps, so neither does this pipeline)
+- 🏛️ **Macroeconomic indicators** — GDP, CPI, Fed funds rate, unemployment, 10Y Treasury yield via FRED, refreshed weekly
+- 🔍 **Full audit trail** — every pipeline run (success, partial, or failure) is logged with fetch/insert counts and error messages
+
+## Tech stack
+
+![Python](https://img.shields.io/badge/Python-3.8-3776AB?style=flat&logo=python&logoColor=white)
+![Airflow](https://img.shields.io/badge/Apache_Airflow-2.8.0-017CEE?style=flat&logo=apacheairflow&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/TimescaleDB-PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-1.4-D71F00?style=flat&logo=python&logoColor=white)
 
 ## Architecture
 
 ```
-Yahoo Finance / FRED / Crypto APIs
-              │
-              ▼
-      Apache Airflow (orchestration)
-   stratum_stocks · stratum_macro · stratum_crypto
-              │
-              ▼
-   Python ingestion scripts (SQLAlchemy)
-   fetch → clean → upsert → log
-              │
-              ▼
-        TimescaleDB (PostgreSQL)
-   8 hypertables, fully indexed
-              │
-       ┌──────┴──────┐
-       ▼             ▼
-    Redis         pgAdmin
-   (cache)      (DB admin UI)
+Yahoo Finance / FRED API
+          │
+          ▼
+  Ingestion Layer (Python)
+  stocks.py · crypto.py · macro.py
+          │
+          ▼
+  Orchestration (Apache Airflow)
+  stratum_stocks (2x/day) · stratum_crypto (hourly) · stratum_macro (weekly)
+          │
+          ▼
+  Storage (TimescaleDB / PostgreSQL)
+  stock_prices · macro_indicators · symbols_registry · pipeline_logs
 ```
 
-All components run as isolated Docker containers, orchestrated via a
-single `docker-compose.yml`.
+All four services (TimescaleDB, Airflow, Redis, pgAdmin) run as isolated Docker containers via a single `docker-compose.yml`.
 
-## Tech Stack & Why
+## Key design decisions
 
-| Tool | Role | Why |
-|---|---|---|
-| **TimescaleDB** | Time-series database | PostgreSQL + automatic time-based partitioning for fast queries at scale |
-| **Apache Airflow** | Pipeline orchestration | Industry-standard scheduling, retries, and run history — not a silent cron job |
-| **Redis** | Cache layer | Fast repeated reads for future API/dashboard layer |
-| **pgAdmin** | Database GUI | Visual inspection and debugging |
-| **Docker Compose** | Containerization | Reproducible, isolated, one-command environment |
-| **SQLAlchemy** | DB connectivity | Connection pooling + transactional safety (`engine.begin()`) |
+- **Upsert-safe ingestion** — every insert uses `ON CONFLICT ... DO UPDATE`, making every pipeline run idempotent and safely re-triggerable without duplicating data
+- **Asset-class-specific schedules** — crypto (24/7 markets) refreshes hourly; equities (session-based) refresh twice daily; macro indicators (monthly/quarterly releases) refresh weekly — no wasted API calls, no stale data
+- **Full observability** — a dedicated `pipeline_logs` table means pipeline health is queryable, not just visible in a UI
 
-## Database Schema
-
-8 tables, all TimescaleDB hypertables:
-
-- `stock_prices` — OHLCV data per symbol
-- `crypto_prices` — OHLCV + market cap
-- `macro_indicators` — GDP, inflation, rates (generic schema, any country/indicator)
-- `forex_rates` — currency pairs
-- `commodities` — oil, gold, silver
-- `news_sentiment` — headline + sentiment (for future NLP integration)
-- `symbols_registry` — master metadata for every tracked symbol
-- `pipeline_logs` — full audit trail of every ingestion run
-
-## Pipelines
-
-| DAG | Schedule | Source |
-|---|---|---|
-| `stratum_stocks` | Twice daily | Yahoo Finance |
-| `stratum_crypto` | Hourly | Crypto API |
-| `stratum_macro` | Weekly | FRED API |
-
-Every run is idempotent (safe to re-run without creating duplicates) and
-logged to `pipeline_logs` with record counts and status.
-
-## Running Locally
+## Running it locally
 
 ```bash
 git clone https://github.com/Auraangel07/pattern-zero-stratum.git
 cd pattern-zero-stratum/docker
-cp .env.example .env   # fill in your own credentials
+
+# Add your FRED API key and DB credentials
+cp .env.example .env
+
 docker-compose up -d
 ```
 
-Access:
-- Airflow: `localhost:8080`
-- pgAdmin: `localhost:5050`
-- TimescaleDB: `localhost:5432`
+Then:
+- Airflow UI → `localhost:8080`
+- pgAdmin → `localhost:5050`
 
-## Project Status
+Trigger any DAG manually from the Airflow UI, or let the schedules run on their own.
 
-Project 01 (this repo's current scope) is stable and running
-end-to-end with zero active failures. Module I (STRATUM) also includes
-two planned additional projects — a live dashboard and an alternative
-data pipeline — not yet built.
+## Roadmap
 
-## Author
+STRATUM is Project 01 of Module I in the Pattern Zero ecosystem. Next: **Market Observatory** (Project 02) and an **Alternative Data Pipeline** (Project 03), before moving to Module II — THE CALCULUS.
 
-Aurelia — Quantitative AI research portfolio, "Pattern Zero"
+---
+
+*Built as part of Pattern Zero — an independent financial AI research project.*
