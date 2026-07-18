@@ -45,11 +45,11 @@ services:
       AIRFLOW__CORE__FERNET_KEY: 'kXiK6p6COGyLywjzOZLIX6b1E_7A01L205mCYGjGA_I='
       AIRFLOW__WEBSERVER__WORKERS: '2'
       AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: '300'
-      DB_HOST: timescaledb
+      DB_HOST: ep-cold-rice-az6dlxq4-pooler.c-3.ap-southeast-1.aws.neon.tech
       DB_PORT: 5432
-      DB_NAME: pattern_zero
-      DB_USER: cartographer
-      DB_PASSWORD: convergence2026
+      DB_NAME: neondb
+      DB_USER: neondb_owner
+      DB_PASSWORD: npg_mPGcx6uX1ide
       FRED_API_KEY: ${FRED_API_KEY}
       _PIP_ADDITIONAL_REQUIREMENTS: "yfinance pandas sqlalchemy>=1.4,<2.0 python-dotenv fredapi multitasking==0.0.11"
     ports:
