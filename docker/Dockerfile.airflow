@@ -1,0 +1,10 @@
+FROM apache/airflow:2.8.0
+
+USER airflow
+RUN pip install --no-cache-dir \
+    "yfinance==1.2.0" \
+    "pandas" \
+    "sqlalchemy>=1.4,<2.0" \
+    "python-dotenv" \
+    "fredapi==0.5.2" \
+    "multitasking==0.0.11"

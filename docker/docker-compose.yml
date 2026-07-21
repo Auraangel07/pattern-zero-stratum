@@ -36,7 +36,9 @@ services:
     restart: unless-stopped
   # ─── PIPELINE ORCHESTRATOR ─────────────────────────────
   airflow:
-    image: apache/airflow:2.8.0
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
     container_name: pattern_zero_airflow
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -51,7 +53,7 @@ services:
       DB_USER: neondb_owner
       DB_PASSWORD: npg_mPGcx6uX1ide
       FRED_API_KEY: ${FRED_API_KEY}
-      _PIP_ADDITIONAL_REQUIREMENTS: "yfinance pandas sqlalchemy>=1.4,<2.0 python-dotenv fredapi multitasking==0.0.11"
+      NEWSAPI_KEY: ${NEWSAPI_KEY}
     ports:
       - "8080:8080"
     depends_on:
