@@ -84,17 +84,48 @@ Interactive docs available at `/docs` once running (Swagger UI, auto-generated f
 - **API decoupled from ingestion** — the FastAPI layer only reads from the database; it never writes, keeping ingestion and serving concerns fully separated
 - **Respectful of upstream sources** — SEC EDGAR requires a real, identifying `User-Agent` header per their access policy; this isn't optional boilerplate, it's honored explicitly in `filings.py`
 
+## Database Setup
+
+STRATUM's ingestion pipelines can run against either a local TimescaleDB container or a hosted Neon Postgres instance. Production currently runs on **Neon** (serverless Postgres) — this is what both the Airflow pipelines and the Market Observatory dashboard read from and write to.
+
+### Option A — Run against Neon (production setup)
+
+1. Create a free project at [neon.tech](https://neon.tech)
+2. Grab your connection string from the Neon console
+3. Set these in `docker/.env`:
+```env
+   DB_HOST=your-neon-host.neon.tech
+   DB_PORT=5432
+   DB_NAME=neondb
+   DB_USER=your_neon_user
+   DB_PASSWORD=your_neon_password
+```
+4. Note: Neon requires SSL — connection strings built in code should include `?sslmode=require`
+
+### Option B — Run fully local (local TimescaleDB container)
+
+Use this if you want a fully offline setup with no cloud dependency:
+```env
+DB_HOST=timescaledb
+DB_PORT=5432
+DB_NAME=pattern_zero
+DB_USER=cartographer
+DB_PASSWORD=your_chosen_password
+```
+
 ## Running it locally
 
 ```bash
 git clone https://github.com/Auraangel07/pattern-zero-stratum.git
 cd pattern-zero-stratum/docker
 
-# Add your FRED/NewsAPI keys and DB credentials
+# Add your FRED/NewsAPI keys and DB credentials (Neon or local — see above)
 cp .env.example .env
 
 docker-compose up -d --build
 ```
+
+Airflow, Redis, pgAdmin, and the Market API all run locally in Docker regardless of which database option you choose — only the actual Postgres storage differs between Option A and B.
 
 Then:
 - Airflow UI → `localhost:8080`
